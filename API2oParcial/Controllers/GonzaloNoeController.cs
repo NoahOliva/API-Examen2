@@ -303,8 +303,8 @@ namespace API2oParcial.Controllers
 
 
         [HttpGet]
-        [Route("GetItemsByDimension/{dim}/{order}")]
-        public HttpResponseMessage GetItemsByDimension(string dim, string order = "DESC")
+        [Route("GetItemsByDimension/{dim}/{order}/{anio}/{mes}")]
+        public HttpResponseMessage GetItemsByDimension(string dim, string anio, int mes, string order = "DESC")
         {
             string WITH = @"
                 WITH 
@@ -321,6 +321,14 @@ namespace API2oParcial.Controllers
                 NON EMPTY
                 {
                     [Measures].[Hechos Ventas Netas]
+                }
+            *
+                {
+                    [Dim Tiempo].[Anio].&[" + anio + @"]
+                }
+            *
+				{
+                [Dim Tiempo].[Numero Mes].&[" + mes + @"]
                 }
                 ON COLUMNS,    
             ";
@@ -367,8 +375,8 @@ namespace API2oParcial.Controllers
         }
 
         [HttpPost]
-        [Route("GetDataPieByDimension/{dim}/{order}")]
-        public HttpResponseMessage GetDataPieByDimension(string dim, string order, string[] values)
+        [Route("GetDataPieByDimension/{dim}/{order}/{anio}/{mes}")]
+        public HttpResponseMessage GetDataPieByDimension(string dim, string order, string anio, int mes, string[] values)
         {
             string WITH = @"
             WITH 
@@ -385,6 +393,14 @@ namespace API2oParcial.Controllers
                 NON EMPTY
                 {
                     [Measures].[Hechos Ventas Netas]
+                }
+                *
+                {
+                    [Dim Tiempo].[Anio].&[" + anio + @"]
+                }
+            *
+				{
+                [Dim Tiempo].[Numero Mes].&[" + mes + @"]
                 }
                 ON COLUMNS,    
             ";
