@@ -467,5 +467,106 @@ namespace API2oParcial.Controllers
 
             return Request.CreateResponse(HttpStatusCode.OK, (object)result);
         }
+
+
+        [HttpPost]
+        [Route("GetDataChartByDimension/{dim}/{order}/{anio}/{meses}")]
+        public HttpResponseMessage GetDataChartByDimension(string dim, string order, string anio, string meses, string[] values)
+        {
+            string WITH = @"
+            WITH 
+                SET [OrderDimension] AS 
+                NONEMPTY(
+                    ORDER(
+			        STRTOSET(@Dimension),
+                    [Measures].[Hechos Ventas Netas], DESC
+	            )
+            )
+            ";
+            string MESES = "";
+            var mesesLista = meses.Split(',');
+
+            for (int i = 0; i < mesesLista.Length -1; i++)
+            {
+                MESES += "[Dim Tiempo].[Numero Mes].&[" + mesesLista[i] + @"]";
+                if (i != mesesLista.Length - 2) MESES += ',';
+            }
+
+            string COLUMNS = @"
+                NON EMPTY
+                {
+                    [Measures].[Hechos Ventas Netas]
+                }
+                *
+                {
+                    [Dim Tiempo].[Anio].&[" + anio + @"]
+                }
+            *
+				{
+                " + MESES + @"
+                }
+                ON COLUMNS,    
+            ";
+
+            string ROWS = @"
+                NON EMPTY
+                {
+                    [OrderDimension]
+                }
+                ON ROWS
+            ";
+
+            string CUBO_NAME = "[DWH Northwind]";
+            //WITH = string.Format(WITH, dim);
+            string MDX_QUERY = WITH + @"SELECT " + COLUMNS + ROWS + " FROM " + CUBO_NAME;
+
+            Debug.Write(MDX_QUERY);
+            
+            List<List<decimal>> ventas = new List<List<decimal>>();
+
+            dynamic result = new
+            {
+                datosVenta = ventas
+            };
+
+            string valoresDimension = string.Empty;
+            foreach (var item in values)
+            {
+                valoresDimension += "{0}.[" + item + "],";
+            }
+            valoresDimension = valoresDimension.TrimEnd(',');
+            valoresDimension = string.Format(valoresDimension, dim);
+            valoresDimension = @"{" + valoresDimension + "}";
+
+            using (AdomdConnection cnn = new AdomdConnection(ConfigurationManager.ConnectionStrings["CuboNorthwind"].ConnectionString))
+            {
+                cnn.Open();
+                using (AdomdCommand cmd = new AdomdCommand(MDX_QUERY, cnn))
+                {
+                    cmd.Parameters.Add("Dimension", valoresDimension);
+                    using (AdomdDataReader dr = cmd.ExecuteReader(CommandBehavior.CloseConnection))
+                    {
+                        while (dr.Read())
+                        {
+                            List<decimal> unCliente = new List<decimal>();
+                            for (int i = 0; i < mesesLista.Length - 1; i++)
+                            {
+                                decimal anioRes;
+                                if (dr.IsDBNull(i+1))
+                                    anioRes = 0;
+                                else
+                                    anioRes = Math.Round(dr.GetDecimal(i+1));
+                                unCliente.Add(anioRes);
+                            }
+                            ventas.Add(unCliente);
+                            
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+
+            return Request.CreateResponse(HttpStatusCode.OK, (object)result);
+        }
     }
 }
